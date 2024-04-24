@@ -8,6 +8,8 @@ python cli.py mssql
 python cli.py postgres
 python cli.py mongodb
 python cli.py redis
+
+python cli.py rides
 """
 
 import typer
@@ -41,6 +43,8 @@ def main(dstype: str):
         print(BlobStorage(blob_storage_conn_str, container_landing).write_file(ds_type="mongodb"))
     elif dstype == "redis":
         print(BlobStorage(blob_storage_conn_str, container_landing).write_file(ds_type="redis"))
+    elif dstype == "rides":
+        print(BlobStorage(blob_storage_conn_str, container_landing).write_file(ds_type="rides"))
     elif dstype == "all":
         print(BlobStorage(blob_storage_conn_str, container_landing).write_file(ds_type="mssql"))
         print(BlobStorage(blob_storage_conn_str, container_landing).write_file(ds_type="postgres"))

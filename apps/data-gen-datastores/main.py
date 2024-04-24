@@ -63,7 +63,7 @@ class BlobStorage(object):
         self.container_landing = container_name
 
     @staticmethod
-    def create_dataframe(dt, ds_type, is_cpf=False):
+    def create_dataframe(dt, ds_type, is_cpf=False, cpf_list=None):
         """
         Create a dataframe based on the provided data and data source type.
 
@@ -71,21 +71,23 @@ class BlobStorage(object):
             dt: The data to create the dataframe from.
             ds_type: The type of the data source.
             is_cpf: Whether generates a cpf.
+            cpf_list: A list of pre-generated CPFs to use (optional).
 
         Returns:
             tuple: A tuple containing the JSON-encoded dataframe and the data source type.
         """
 
-        if ds_type == "redis":
-            pd_df = pd.DataFrame(dt)
-        else:
-            pd_df = pd.DataFrame(dt)
-            pd_df['user_id'] = api.gen_user_id()
-            pd_df['dt_current_timestamp'] = api.gen_timestamp()
+        pd_df = pd.DataFrame(dt)
+        pd_df['user_id'] = api.gen_user_id()
+        pd_df['dt_current_timestamp'] = api.gen_timestamp()
 
-            if is_cpf:
-                cpf_list = [api.gen_cpf() for _ in range(len(pd_df))]
-                pd_df['cpf'] = cpf_list
+        if is_cpf:
+            if cpf_list:
+                if len(cpf_list) < len(pd_df):
+                    raise ValueError("cpf.")
+                pd_df['cpf'] = cpf_list[:len(pd_df)]
+            else:
+                pd_df['cpf'] = [api.gen_cpf() for _ in range(len(pd_df))]
 
         json_data = pd_df.to_json(orient="records").encode('utf-8')
         return json_data, ds_type
@@ -227,3 +229,50 @@ class BlobStorage(object):
             self.upload_blob(apple_auth_json, apple_auth_file_name)
 
             return google_auth_file_name, linkedin_auth_file_name, apple_auth_file_name
+
+        elif ds_type == "rides":
+
+            timestamp = f'{year}_{month}_{day}_{hour}_{minute}_{second}.json'
+
+            # TODO mssql user
+            dt_mssql_users = users.get_multiple_rows(gen_dt_rows=100)
+            mssql_users_json, ds_type = self.create_dataframe(dt_mssql_users, ds_type, is_cpf=gen_cpf)
+            extract_mssql_users_cpf = [user['cpf'] for user in json.loads(mssql_users_json)]
+            mssql_users_file_name = "com.owshq.data" + "/" + "mssql" + "/users" + "/" + timestamp
+            self.upload_blob(mssql_users_json, mssql_users_file_name)
+
+            # TODO mongodb user
+            dt_mongodb_users = api.api_get_request(url=urls["users"], params=params)
+            mongodb_users_json, ds_type = self.create_dataframe(dt_mongodb_users, ds_type, is_cpf=gen_cpf)
+            extract_mongodb_users_cpf = [user['cpf'] for user in json.loads(mongodb_users_json)]
+            mongodb_users_file_name = "com.owshq.data" + "/" + "mongodb" + "/users" + "/" + timestamp
+            self.upload_blob(mongodb_users_json, mongodb_users_file_name)
+
+            # TODO mongodb rides
+            combine_cpf_list = list(set(extract_mssql_users_cpf + extract_mongodb_users_cpf))
+            dt_rides = rides.get_multiple_rows(gen_dt_rows=100)
+            rides_json, ds_type = self.create_dataframe(dt_rides, ds_type, is_cpf=True, cpf_list=combine_cpf_list)
+            rides_file_name = "com.owshq.data" + "/" + "mongodb" + "/rides" + "/" + timestamp
+            self.upload_blob(rides_json, rides_file_name)
+
+            dt_payments = payments.get_multiple_rows(gen_dt_rows=100)
+            dt_subscription = api.api_get_request(url=urls["subscription"], params=params)
+            dt_vehicle = vehicle.get_multiple_rows(gen_dt_rows=100)
+
+            payments_json, ds_type = self.create_dataframe(dt_payments, ds_type)
+            subscription_json, ds_type = self.create_dataframe(dt_subscription, ds_type)
+            dt_vehicle_json, ds_type = self.create_dataframe(dt_vehicle, ds_type)
+
+            file_prefix = "com.owshq.data" + "/" + "postgres"
+            timestamp = f'{year}_{month}_{day}_{hour}_{minute}_{second}.json'
+
+            payments_file_name = file_prefix + "/payments" + "/" + timestamp
+            self.upload_blob(payments_json, payments_file_name)
+
+            subscription_file_name = file_prefix + "/subscription" + "/" + timestamp
+            self.upload_blob(subscription_json, subscription_file_name)
+
+            vehicle_file_name = file_prefix + "/vehicle" + "/" + timestamp
+            self.upload_blob(dt_vehicle_json, vehicle_file_name)
+
+            return mssql_users_file_name, mongodb_users_file_name, rides_file_name, payments_file_name, subscription_file_name, vehicle_file_name

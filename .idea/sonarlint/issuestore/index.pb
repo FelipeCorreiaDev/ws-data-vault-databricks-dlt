@@ -28,3 +28,7 @@ q
 Aapps/data-gen-datastores/src/templates/sources/mongodb/users.json,8/8/88749c07b7ca561b149249f5f47196b4033332bc
 q
 Aapps/data-gen-datastores/src/templates/sources/mongodb/rides.json,e/7/e7683c422fde41441df76fc9c5cdde817441fbd6
+]
+-apps/data-gen-datastores/src/objects/rides.py,7/9/794e08af93c4a2159a61021dab04692fa31c55e1
+]
+-apps/data-gen-datastores/src/objects/users.py,e/a/ea2d4da00a63ec9b37602b18b9f2e7f1e4e0593f
