@@ -84,8 +84,8 @@ class BlobStorage(object):
             pd_df['dt_current_timestamp'] = api.gen_timestamp()
 
             if is_cpf:
-                # TODO cpf_list = [api.gen_cpf() for _ in range(len(pd_df))]
-                pd_df['cpf'] = is_cpf
+                cpf_list = [api.gen_cpf() for _ in range(len(pd_df))]
+                pd_df['cpf'] = cpf_list
 
         json_data = pd_df.to_json(orient="records").encode('utf-8')
         return json_data, ds_type
