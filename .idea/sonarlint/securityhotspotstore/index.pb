@@ -34,3 +34,5 @@ Aapps/data-gen-datastores/src/templates/sources/mongodb/rides.json,e/7/e7683c42
 -apps/data-gen-datastores/src/objects/users.py,e/a/ea2d4da00a63ec9b37602b18b9f2e7f1e4e0593f
 S
 #apps/data-gen-datastores/rides.bash,4/4/44eafbea83ea5726377e6cc8689b205cd1a1dbab
+`
+0apps/data-gen-datastores/src/objects/payments.py,a/f/af2b30884ea10d68cd3a1f24a33d895b6ab27b01

@@ -1,4 +1,5 @@
 import os
+import uuid
 import pandas as pd
 import numpy as np
 
@@ -40,9 +41,13 @@ class Payments:
         get_user_data['dt_current_timestamp'] = formatted_timestamp
         get_user_data.columns = get_user_data.columns.str.strip().str.lower().str.replace(' ', '_').str.replace('(','').str.replace(')', '')
         get_user_data = get_user_data.replace({np.nan: None})
+        get_user_data['txn_id'] = [uuid.uuid4().hex for _ in range(len(get_user_data))]
+        get_user_data['subscription_id'] = np.random.randint(0, 10001, size=len(get_user_data))
+        get_user_data.rename(columns={'subscription_price': 'price'}, inplace=True)
 
         user_output = get_user_data[
             [
+                'txn_id',
                 'user_id',
                 'gender',
                 'language',
@@ -53,7 +58,8 @@ class Payments:
                 'currency',
                 'currency_mode',
                 'credit_card_type',
-                'subscription_price',
+                'subscription_id',
+                'price',
                 'time',
                 'dt_current_timestamp'
             ]].head(int(gen_dt_rows))

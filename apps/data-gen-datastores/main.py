@@ -63,7 +63,7 @@ class BlobStorage(object):
         self.container_landing = container_name
 
     @staticmethod
-    def create_dataframe(dt, ds_type, is_cpf=False, cpf_list=None):
+    def create_dataframe(dt, ds_type, is_cpf=False, cpf_list=None, txn_id_list=None, subscription_id_list=None):
         """
         Create a dataframe based on the provided data and data source type.
 
@@ -71,7 +71,6 @@ class BlobStorage(object):
             dt: The data to create the dataframe from.
             ds_type: The type of the data source.
             is_cpf: Whether generates a cpf.
-            cpf_list: A list of pre-generated CPFs to use (optional).
 
         Returns:
             tuple: A tuple containing the JSON-encoded dataframe and the data source type.
@@ -88,6 +87,16 @@ class BlobStorage(object):
                 pd_df['cpf'] = cpf_list[:len(pd_df)]
             else:
                 pd_df['cpf'] = [api.gen_cpf() for _ in range(len(pd_df))]
+
+        if txn_id_list:
+            if len(txn_id_list) < len(pd_df):
+                raise ValueError("txn.")
+            pd_df['txn_id'] = txn_id_list[:len(pd_df)]
+
+        if subscription_id_list:
+            if len(subscription_id_list) < len(pd_df):
+                raise ValueError("subscription.")
+            pd_df['subscription_id'] = subscription_id_list[:len(pd_df)]
 
         json_data = pd_df.to_json(orient="records").encode('utf-8')
         return json_data, ds_type
@@ -248,13 +257,6 @@ class BlobStorage(object):
             mongodb_users_file_name = "com.owshq.data" + "/" + "mongodb" + "/users" + "/" + timestamp
             self.upload_blob(mongodb_users_json, mongodb_users_file_name)
 
-            # TODO mongodb rides
-            combine_cpf_list = list(set(extract_mssql_users_cpf + extract_mongodb_users_cpf))
-            dt_rides = rides.get_multiple_rows(gen_dt_rows=100)
-            rides_json, ds_type = self.create_dataframe(dt_rides, ds_type, is_cpf=True, cpf_list=combine_cpf_list)
-            rides_file_name = "com.owshq.data" + "/" + "mongodb" + "/rides" + "/" + timestamp
-            self.upload_blob(rides_json, rides_file_name)
-
             dt_payments = payments.get_multiple_rows(gen_dt_rows=100)
             dt_subscription = api.api_get_request(url=urls["subscription"], params=params)
             dt_vehicle = vehicle.get_multiple_rows(gen_dt_rows=100)
@@ -267,12 +269,27 @@ class BlobStorage(object):
             timestamp = f'{year}_{month}_{day}_{hour}_{minute}_{second}.json'
 
             payments_file_name = file_prefix + "/payments" + "/" + timestamp
-            self.upload_blob(payments_json, payments_file_name)
-
             subscription_file_name = file_prefix + "/subscription" + "/" + timestamp
-            self.upload_blob(subscription_json, subscription_file_name)
-
             vehicle_file_name = file_prefix + "/vehicle" + "/" + timestamp
+            rides_file_name = "com.owshq.data" + "/" + "mongodb" + "/rides" + "/" + timestamp
+
+            # TODO mongodb rides
+            combine_cpf_list = list(set(extract_mssql_users_cpf + extract_mongodb_users_cpf))
+            extract_payments_txn_id = [payment['txn_id'] for payment in json.loads(payments_json)]
+            extract_subscription_id = [subscription['user_id'] for subscription in json.loads(subscription_json)]
+
+            dt_rides = rides.get_multiple_rows(gen_dt_rows=100)
+            rides_json, ds_type = self.create_dataframe(
+                dt_rides, ds_type,
+                is_cpf=True,
+                cpf_list=combine_cpf_list,
+                txn_id_list=extract_payments_txn_id,
+                subscription_id_list=extract_subscription_id
+            )
+
+            self.upload_blob(payments_json, payments_file_name)
+            self.upload_blob(subscription_json, subscription_file_name)
             self.upload_blob(dt_vehicle_json, vehicle_file_name)
+            self.upload_blob(rides_json, rides_file_name)
 
             return mssql_users_file_name, mongodb_users_file_name, rides_file_name, payments_file_name, subscription_file_name, vehicle_file_name
